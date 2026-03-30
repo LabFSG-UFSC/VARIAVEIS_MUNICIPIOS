@@ -64,6 +64,9 @@ TIPO_POR_VARIAVEL = {
     "regic_var65": "indice_normalizado",
     "regic_var66": "indice_normalizado",
     "plano_diretor": "binaria",
+    "area_urb_densa_km2": "area_km2",
+    "loteamento_vazio_km2": "area_km2",
+    "vazios_intraurbanos_km2": "area_km2",
 }
 
 FONTE_PADRAO = {
@@ -79,6 +82,7 @@ FONTE_PADRAO = {
     "bronze/tabela9584.csv": "IBGE - Tabela 9584 absoluta",
     "REGIC 2018 - Descrição das variáveis": "IBGE - REGIC 2018",
     "bronze/tabela5882.csv": "IBGE - Tabela 5882",
+    "bronze/tabela8418.csv": "IBGE - Tabela 8418",
 }
 
 METADADOS = [
@@ -457,6 +461,30 @@ METADADOS = [
         "ano_referencia": "2021",
         "fonte_original": "bronze/tabela5882.csv",
         "observacoes": "Na tabela original, a coluna Total registra o numero de municipios com plano diretor; no nivel municipal ela foi convertida para indicador binario 1/0.",
+    },
+    {
+        "variavel_v14": "area_urb_densa_km2",
+        "variavel_original": "Áreas urbanizadas densas (Quilômetros quadrados)",
+        "descricao_original": "Area de areas urbanizadas densas no municipio, em quilometros quadrados.",
+        "ano_referencia": "2019",
+        "fonte_original": "bronze/tabela8418.csv",
+        "observacoes": "Obtida da Tabela 8418 do IBGE e renomeada para formato curto na base final.",
+    },
+    {
+        "variavel_v14": "loteamento_vazio_km2",
+        "variavel_original": "Loteamento vazio (Quilômetros quadrados)",
+        "descricao_original": "Area de loteamentos vazios no municipio, em quilometros quadrados.",
+        "ano_referencia": "2019",
+        "fonte_original": "bronze/tabela8418.csv",
+        "observacoes": "Obtida da Tabela 8418 do IBGE e renomeada para formato curto na base final.",
+    },
+    {
+        "variavel_v14": "vazios_intraurbanos_km2",
+        "variavel_original": "Vazios intraurbanos (Quilômetros quadrados)",
+        "descricao_original": "Area de vazios intraurbanos no municipio, em quilometros quadrados.",
+        "ano_referencia": "2019",
+        "fonte_original": "bronze/tabela8418.csv",
+        "observacoes": "Obtida da Tabela 8418 do IBGE e renomeada para formato curto na base final.",
     },
 ]
 

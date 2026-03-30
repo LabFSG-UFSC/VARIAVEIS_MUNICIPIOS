@@ -711,6 +711,44 @@ Execucao:
 python3 scripts/gera_dicionario_dados_v14.py
 ```
 
+## Etapa 19: Merge Da Tabela 8418 Com A V14
+
+Script: `scripts/merge_tabela8418_v14.py`
+
+Objetivo:
+
+- ler `../prata/processamento/merge_v14.csv`;
+- ler `../bronze/tabela8418.csv`;
+- fazer merge via codigo do municipio;
+- incorporar as medidas de areas urbanizadas da tabela 8418;
+- gerar `../prata/processamento/merge_v15.csv`.
+
+Como o merge e feito:
+
+- a tabela 8418 e lida com `skiprows=3` para ignorar as linhas de metadados iniciais;
+- a base `v14` usa a coluna `cod_mun` como chave;
+- a tabela 8418 usa a coluna `Cód.` como chave;
+- os codigos sao normalizados antes do merge;
+- linhas de legenda e a linha com codigo `0` sao descartadas;
+- as tres colunas incorporadas sao renomeadas para nomes curtos na propria etapa de merge.
+
+Colunas incorporadas:
+
+- `area_urb_densa_km2`
+- `loteamento_vazio_km2`
+- `vazios_intraurbanos_km2`
+
+Resultado registrado:
+
+- a `merge_v15.csv` foi gerada com 5570 linhas;
+- a tabela 8418 usa ano de referencia `2019`.
+
+Execucao:
+
+```bash
+python3 scripts/merge_tabela8418_v14.py
+```
+
 ## Regra Permanente Para Novas CSVs E Novas Versoes
 
 Sempre que uma nova CSV for incorporada ao pipeline, a atualizacao nao termina no merge da nova base. A manutencao deve incluir tambem a documentacao da etapa e a atualizacao do dicionario de dados.
@@ -782,6 +820,7 @@ Ao final das etapas atuais, os principais arquivos processados sao:
 - `../prata/processamento/merge_v12.csv`
 - `../prata/processamento/merge_v13.csv`
 - `../prata/processamento/merge_v14.csv`
+- `../prata/processamento/merge_v15.csv`
 - `dicionario_dados.csv`
 - `../prata/pre_merge/homicidios_municipais_2022.csv`
 - `../prata/pre_merge/indicadores_seguranca_publica_municipal/*.csv`
@@ -830,3 +869,4 @@ Quando o novo script alterar a versao final da base, acrescente tambem:
 - `scripts/merge_tabela5882_plano_diretor_v13.py`
 - `scripts/normaliza_nomes_colunas_v13.py`
 - `scripts/gera_dicionario_dados_v14.py`
+- `scripts/merge_tabela8418_v14.py`
