@@ -241,6 +241,37 @@ Execucao:
 python3 scripts/processa_regic_2018_pre_merge.py
 ```
 
+## Pre-merge Auxiliar: Demissoes Municipais Do Ipea
+
+Script: `scripts/agrega_demissoes_ipea_anuais.py`
+
+Objetivo:
+
+- localizar o arquivo mais recente `ipeadata*.csv` na pasta `../bronze/`;
+- ler a serie municipal mensal de demissoes;
+- somar os 12 meses para cada municipio;
+- gerar uma base anual pronta para merge em `../prata/pre_merge/`.
+
+Como o processamento e feito:
+
+- a primeira linha do arquivo e ignorada por conter apenas o titulo da serie;
+- colunas vazias do tipo `Unnamed` sao descartadas;
+- as colunas mensais sao identificadas automaticamente pelo padrao `AAAA.MM`;
+- o script valida que existe apenas um ano no arquivo e que esse ano possui 12 meses;
+- os valores mensais sao convertidos para numericos e somados por municipio;
+- se existir uma base consolidada `merge_v*.csv`, a saida e filtrada para manter apenas os codigos municipais presentes na versao mais recente do pipeline;
+- a saida e padronizada com as colunas `cod_mun`, `sigla_uf`, `municipio` e `demissoes_AAAA`.
+
+Arquivo gerado:
+
+- `../prata/pre_merge/ipea_demissoes_municipais_AAAA.csv`
+
+Execucao:
+
+```bash
+python3 scripts/agrega_demissoes_ipea_anuais.py
+```
+
 ## Etapa 4: SINISA Esgoto Base Municipal
 
 Script: `scripts/processa_sinisa_esgoto_base_municipal.py`
@@ -749,6 +780,241 @@ Execucao:
 python3 scripts/merge_tabela8418_v14.py
 ```
 
+## Etapa 20: Merge Das Demissoes Anuais Do Ipea Com A V15
+
+Script: `scripts/merge_ipea_demissoes_v15.py`
+
+Objetivo:
+
+- ler `../prata/processamento/merge_v15.csv`;
+- ler `../prata/pre_merge/ipea_demissoes_municipais_2025.csv`;
+- fazer merge via codigo do municipio;
+- incorporar a coluna anual de demissoes do Ipea;
+- gerar `../prata/processamento/merge_v16.csv`.
+
+Como o merge e feito:
+
+- a base `v15` usa a coluna `cod_mun` como chave;
+- a base anual do Ipea tambem usa a coluna `cod_mun` como chave;
+- os codigos sao normalizados antes do merge;
+- apenas a coluna `demissoes_2025` e incorporada ao resultado;
+- a saida preserva toda a estrutura da `v15` e adiciona a nova variavel ao final.
+
+Coluna incorporada:
+
+- `demissoes_2025`
+
+Resultado registrado:
+
+- a `merge_v16.csv` foi gerada com 5570 linhas;
+- houve correspondencia para todos os municipios da `v15`.
+
+Execucao:
+
+```bash
+python3 scripts/merge_ipea_demissoes_v15.py
+```
+
+## Etapa 21: Merge Do CNES De Ambulatorios Com A V16
+
+Script: `scripts/merge_cnes_ambulatorios_v16.py`
+
+Objetivo:
+
+- ler `../prata/processamento/merge_v16.csv`;
+- ler `../bronze/cnes_cnv_atambbr131932200_135_70_71.csv`;
+- fazer merge via codigo do municipio;
+- incorporar o numero de ambulatorios SUS por municipio;
+- gerar `../prata/processamento/merge_v17.csv`.
+
+Como o merge e feito:
+
+- o arquivo do CNES e lido com `encoding=latin1`, separador `;` e `skiprows=3`;
+- a base `v16` usa a coluna `cod_mun`, mas o CNES traz o codigo municipal com 6 digitos embutido no inicio do campo `Município`;
+- por isso, o merge usa a chave reduzida `cod_mun[:6]` na base `v16` contra os 6 digitos extraidos do campo `Município` no CNES;
+- a coluna `SUS` e convertida para numerica e renomeada para `ambulatorios_sus_2026_02`;
+- o periodo `Fev/2026` e identificado no cabecalho do arquivo para validar a referencia temporal da variavel.
+
+Coluna incorporada:
+
+- `ambulatorios_sus_2026_02`
+
+Resultado registrado:
+
+- a `merge_v17.csv` foi gerada com 5570 linhas;
+- a referencia temporal da coluna incorporada e fevereiro de 2026.
+
+Execucao:
+
+```bash
+python3 scripts/merge_cnes_ambulatorios_v16.py
+```
+
+## Etapa 22: Merge Do CNES De Estabelecimentos Com A V17
+
+Script: `scripts/merge_cnes_estabelecimentos_v17.py`
+
+Objetivo:
+
+- ler `../prata/processamento/merge_v17.csv`;
+- ler `../bronze/cnes_cnv_estabbr134413200_135_70_71.csv`;
+- fazer merge via codigo do municipio;
+- incorporar as colunas de quantidade de estabelecimentos por tipo do CNES;
+- gerar `../prata/processamento/merge_v18.csv`.
+
+Como o merge e feito:
+
+- o arquivo do CNES e lido com `encoding=latin1`, separador `;` e `skiprows=3`;
+- a coluna `Município` do CNES traz o codigo municipal com 6 digitos no inicio do texto;
+- o merge usa `cod_mun[:6]` na base `v17` contra os 6 digitos extraidos do campo `Município` no CNES;
+- todos os valores `-` nas colunas do CNES sao substituidos por `0` antes da conversao para numerico;
+- para o municipio de Brasilia, todas as colunas incorporadas do CNES sao zeradas;
+- os nomes das colunas incorporadas passam para o padrao `cnes_estab_*_2025_12`, preservando o periodo de referencia do arquivo.
+
+Resultado registrado:
+
+- a `merge_v18.csv` foi gerada com 5570 linhas;
+- o periodo de referencia detectado no arquivo foi `Dez/2025`;
+- houve correspondencia para todos os municipios da `v17`.
+
+Execucao:
+
+```bash
+python3 scripts/merge_cnes_estabelecimentos_v17.py
+```
+
+## Etapa 23: Normalizacao Dos Nomes Das Colunas De Estabelecimentos Do CNES Na V18
+
+Script: `scripts/normaliza_nomes_cnes_estabelecimentos_v18.py`
+
+Objetivo:
+
+- ler `../prata/processamento/merge_v18.csv`;
+- encurtar os nomes das colunas do bloco de estabelecimentos do CNES;
+- manter o sentido das variaveis;
+- gerar `../prata/processamento/merge_v19.csv`.
+
+Como a normalizacao e feita:
+
+- apenas as colunas do bloco `cnes_estab_*_2025_12` sao renomeadas;
+- os nomes passam para uma forma mais curta, mantendo o prefixo `cnes_` e o periodo `2025_12`;
+- abreviacoes como `hosp`, `unid`, `reg`, `caps`, `lacen` e `ubs` sao usadas para reduzir o tamanho dos nomes sem perder legibilidade.
+
+Resultado registrado:
+
+- a `merge_v19.csv` foi gerada com 5570 linhas;
+- 39 colunas do CNES tiveram seus nomes encurtados.
+
+Execucao:
+
+```bash
+python3 scripts/normaliza_nomes_cnes_estabelecimentos_v18.py
+```
+
+## Etapa 24: Remocao Do Prefixo CNES Nos Nomes De Estabelecimentos Na V19
+
+Script: `scripts/normaliza_nomes_cnes_estabelecimentos_v19.py`
+
+Objetivo:
+
+- ler `../prata/processamento/merge_v19.csv`;
+- remover o prefixo `cnes_` das colunas de estabelecimentos;
+- manter apenas o nome do tipo de estabelecimento e o periodo no nome final;
+- gerar `../prata/processamento/merge_v20.csv`.
+
+Como a normalizacao e feita:
+
+- apenas as colunas do bloco de estabelecimentos do CNES sao renomeadas;
+- o prefixo `cnes_` e removido;
+- os nomes finais ficam no formato `tipo_estabelecimento_2025_12`;
+- abreviacoes curtas continuam sendo usadas quando ajudam a manter os nomes compactos e legiveis.
+
+Resultado registrado:
+
+- a `merge_v20.csv` foi gerada com 5570 linhas;
+- 39 colunas tiveram o prefixo `cnes_` removido.
+
+Execucao:
+
+```bash
+python3 scripts/normaliza_nomes_cnes_estabelecimentos_v19.py
+```
+
+## Etapa 25: Remocao Do Periodo Nos Nomes De Estabelecimentos Na V20
+
+Script: `scripts/remove_periodo_nomes_cnes_v20.py`
+
+Objetivo:
+
+- ler `../prata/processamento/merge_v20.csv`;
+- remover o sufixo de periodo das colunas de estabelecimentos;
+- manter apenas o nome da informacao no nome final da coluna;
+- gerar `../prata/processamento/merge_v21.csv`.
+
+Como a normalizacao e feita:
+
+- apenas as colunas do bloco de estabelecimentos do CNES sao renomeadas;
+- o sufixo `_2025_12` e removido;
+- os nomes finais ficam apenas com o significado da informacao, como `hospital_esp`, `unidade_mista` e `estab_total`.
+
+Resultado registrado:
+
+- a `merge_v21.csv` foi gerada com 5570 linhas;
+- 39 colunas tiveram o sufixo de periodo removido.
+
+Execucao:
+
+```bash
+python3 scripts/remove_periodo_nomes_cnes_v20.py
+```
+
+## Etapa 26: Merge Das Bases Da ANA De Agua E Seca Com A V21
+
+Script: `scripts/merge_ana_agua_seca_v21.py`
+
+Objetivo:
+
+- ler `../prata/processamento/merge_v21.csv`;
+- ler `../bronze/Demanda_Total.csv`;
+- ler `../bronze/N%C3%BAmero_de_Registros_de_Secas_por_Munic%C3%ADpio_entre_2003_e_2015.csv`;
+- fazer merge via codigo do municipio;
+- incorporar as variaveis da ANA de demanda de agua e eventos de seca;
+- gerar `../prata/processamento/merge_v22.csv`.
+
+Como o merge e feito:
+
+- a `v21` usa `cod_mun` como chave;
+- a base `Demanda_Total.csv` entra por `CDMUN`;
+- a base de secas entra por `CD_GEOCMU`;
+- os codigos municipais sao normalizados antes do merge;
+- o arquivo de demanda de agua e validado para garantir um unico ano de referencia;
+- apenas as colunas de demanda de agua e de contagem de secas sao incorporadas ao resultado.
+
+Colunas incorporadas:
+
+- `demanda_agua_hum_urb_m3s`
+- `demanda_agua_hum_rur_m3s`
+- `demanda_agua_ind_m3s`
+- `demanda_agua_min_m3s`
+- `demanda_agua_term_m3s`
+- `demanda_agua_animal_m3s`
+- `demanda_agua_irr_m3s`
+- `demanda_agua_total_m3s`
+- `registros_seca_2003_2015`
+
+Resultado registrado:
+
+- a `merge_v22.csv` foi gerada com 5570 linhas;
+- houve correspondencia para todos os municipios na base de demanda de agua;
+- houve correspondencia para 2736 municipios na base de registros de seca;
+- o ano identificado no arquivo de demanda de agua foi `2020`.
+
+Execucao:
+
+```bash
+python3 scripts/merge_ana_agua_seca_v21.py
+```
+
 ## Regra Permanente Para Novas CSVs E Novas Versoes
 
 Sempre que uma nova CSV for incorporada ao pipeline, a atualizacao nao termina no merge da nova base. A manutencao deve incluir tambem a documentacao da etapa e a atualizacao do dicionario de dados.
@@ -821,8 +1087,16 @@ Ao final das etapas atuais, os principais arquivos processados sao:
 - `../prata/processamento/merge_v13.csv`
 - `../prata/processamento/merge_v14.csv`
 - `../prata/processamento/merge_v15.csv`
+- `../prata/processamento/merge_v16.csv`
+- `../prata/processamento/merge_v17.csv`
+- `../prata/processamento/merge_v18.csv`
+- `../prata/processamento/merge_v19.csv`
+- `../prata/processamento/merge_v20.csv`
+- `../prata/processamento/merge_v21.csv`
+- `../prata/processamento/merge_v22.csv`
 - `dicionario_dados.csv`
 - `../prata/pre_merge/homicidios_municipais_2022.csv`
+- `../prata/pre_merge/ipea_demissoes_municipais_AAAA.csv`
 - `../prata/pre_merge/indicadores_seguranca_publica_municipal/*.csv`
 - `../prata/pre_merge/regic_2018/*.csv`
 - `../prata/pre_merge/sinisa_esgoto_base_municipal/*.csv`
@@ -855,6 +1129,7 @@ Quando o novo script alterar a versao final da base, acrescente tambem:
 - `scripts/merge_utilizado_fundeb_transferencias.py`
 - `scripts/processa_sinisa_esgoto_base_municipal.py`
 - `scripts/processa_indicadores_seguranca_publica_municipal.py`
+- `scripts/agrega_demissoes_ipea_anuais.py`
 - `scripts/processa_regic_2018_pre_merge.py`
 - `scripts/agrega_homicidios_municipais_2022.py`
 - `scripts/merge_sinisa_atendimento.py`
@@ -870,3 +1145,10 @@ Quando o novo script alterar a versao final da base, acrescente tambem:
 - `scripts/normaliza_nomes_colunas_v13.py`
 - `scripts/gera_dicionario_dados_v14.py`
 - `scripts/merge_tabela8418_v14.py`
+- `scripts/merge_ipea_demissoes_v15.py`
+- `scripts/merge_cnes_ambulatorios_v16.py`
+- `scripts/merge_cnes_estabelecimentos_v17.py`
+- `scripts/normaliza_nomes_cnes_estabelecimentos_v18.py`
+- `scripts/normaliza_nomes_cnes_estabelecimentos_v19.py`
+- `scripts/remove_periodo_nomes_cnes_v20.py`
+- `scripts/merge_ana_agua_seca_v21.py`

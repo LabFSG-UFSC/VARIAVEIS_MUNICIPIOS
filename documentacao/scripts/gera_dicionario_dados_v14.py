@@ -8,6 +8,7 @@ Gera um dicionario de dados em CSV para a versao mais recente da base merge_v*.c
 from __future__ import annotations
 
 import re
+import unicodedata
 from pathlib import Path
 
 import pandas as pd
@@ -67,6 +68,17 @@ TIPO_POR_VARIAVEL = {
     "area_urb_densa_km2": "area_km2",
     "loteamento_vazio_km2": "area_km2",
     "vazios_intraurbanos_km2": "area_km2",
+    "demissoes_2025": "contagem",
+    "ambulatorios_sus_2026_02": "contagem",
+    "demanda_agua_hum_urb_m3s": "numerica_absoluta",
+    "demanda_agua_hum_rur_m3s": "numerica_absoluta",
+    "demanda_agua_ind_m3s": "numerica_absoluta",
+    "demanda_agua_min_m3s": "numerica_absoluta",
+    "demanda_agua_term_m3s": "numerica_absoluta",
+    "demanda_agua_animal_m3s": "numerica_absoluta",
+    "demanda_agua_irr_m3s": "numerica_absoluta",
+    "demanda_agua_total_m3s": "numerica_absoluta",
+    "registros_seca_2003_2015": "contagem",
 }
 
 FONTE_PADRAO = {
@@ -83,6 +95,137 @@ FONTE_PADRAO = {
     "REGIC 2018 - Descrição das variáveis": "IBGE - REGIC 2018",
     "bronze/tabela5882.csv": "IBGE - Tabela 5882",
     "bronze/tabela8418.csv": "IBGE - Tabela 8418",
+    "prata/pre_merge/ipea_demissoes_municipais_2025.csv": "IpeaData - Novo Caged sem ajuste",
+    "bronze/cnes_cnv_atambbr131932200_135_70_71.csv": "CNES - Ambulatorio SUS por municipio",
+    "bronze/cnes_cnv_estabbr134413200_135_70_71.csv": "CNES - Estabelecimentos por tipo",
+    "bronze/Demanda_Total.csv": "ANA - Demanda total de agua por municipio",
+    "bronze/N%C3%BAmero_de_Registros_de_Secas_por_Munic%C3%ADpio_entre_2003_e_2015.csv": "ANA - Numero de registros de secas por municipio entre 2003 e 2015",
+}
+
+CNES_ESTAB_RENOMEAR = {
+    "cnes_estab_posto_de_saude_2025_12": "cnes_posto_saude_2025_12",
+    "cnes_estab_centro_de_saude_unidade_basica_2025_12": "cnes_centro_saude_ubs_2025_12",
+    "cnes_estab_policlinica_2025_12": "cnes_policlinica_2025_12",
+    "cnes_estab_hospital_geral_2025_12": "cnes_hosp_geral_2025_12",
+    "cnes_estab_hospital_especializado_2025_12": "cnes_hosp_esp_2025_12",
+    "cnes_estab_unidade_mista_2025_12": "cnes_unid_mista_2025_12",
+    "cnes_estab_pronto_socorro_geral_2025_12": "cnes_ps_geral_2025_12",
+    "cnes_estab_pronto_socorro_especializado_2025_12": "cnes_ps_esp_2025_12",
+    "cnes_estab_consultorio_isolado_2025_12": "cnes_cons_isol_2025_12",
+    "cnes_estab_unidade_movel_fluvial_2025_12": "cnes_unid_mov_fluv_2025_12",
+    "cnes_estab_clinica_centro_de_especialidade_2025_12": "cnes_clin_centro_esp_2025_12",
+    "cnes_estab_unidade_de_apoio_diagnose_e_terapia_sadt_isolado_2025_12": "cnes_sadt_isol_2025_12",
+    "cnes_estab_unidade_movel_terrestre_2025_12": "cnes_unid_mov_terr_2025_12",
+    "cnes_estab_unidade_movel_de_nivel_pre_hospitalar_na_area_de_urgencia_2025_12": "cnes_unid_mov_pre_hosp_urg_2025_12",
+    "cnes_estab_farmacia_2025_12": "cnes_farmacia_2025_12",
+    "cnes_estab_unidade_de_vigilancia_em_saude_2025_12": "cnes_vig_saude_2025_12",
+    "cnes_estab_cooperativa_ou_empresa_de_cessao_de_trabalhadores_na_saude_2025_12": "cnes_coop_cessao_saude_2025_12",
+    "cnes_estab_centro_de_parto_normal_isolado_2025_12": "cnes_cpn_isol_2025_12",
+    "cnes_estab_hospital_dia_isolado_2025_12": "cnes_hosp_dia_isol_2025_12",
+    "cnes_estab_laboratorio_central_de_saude_publica_lacen_2025_12": "cnes_lacen_2025_12",
+    "cnes_estab_central_de_gestao_em_saude_2025_12": "cnes_gestao_saude_2025_12",
+    "cnes_estab_centro_de_atencao_hemoterapia_e_ou_hematologica_2025_12": "cnes_hemoterapia_hematol_2025_12",
+    "cnes_estab_centro_de_atencao_psicossocial_2025_12": "cnes_caps_2025_12",
+    "cnes_estab_centro_de_apoio_a_saude_da_familia_2025_12": "cnes_apoio_saude_fam_2025_12",
+    "cnes_estab_unidade_de_atencao_a_saude_indigena_2025_12": "cnes_saude_indigena_2025_12",
+    "cnes_estab_pronto_atendimento_2025_12": "cnes_pronto_atend_2025_12",
+    "cnes_estab_polo_academia_da_saude_2025_12": "cnes_polo_acad_saude_2025_12",
+    "cnes_estab_telessaude_2025_12": "cnes_telessaude_2025_12",
+    "cnes_estab_central_de_regulacao_medica_das_urgencias_2025_12": "cnes_reg_med_urg_2025_12",
+    "cnes_estab_servico_de_atencao_domiciliar_isolado_home_care_2025_12": "cnes_atend_dom_homecare_2025_12",
+    "cnes_estab_unidade_de_atencao_em_regime_residencial_2025_12": "cnes_atend_reg_resid_2025_12",
+    "cnes_estab_oficina_ortopedica_2025_12": "cnes_ofic_ortopedica_2025_12",
+    "cnes_estab_laboratorio_de_saude_publica_2025_12": "cnes_lab_saude_pub_2025_12",
+    "cnes_estab_central_de_regulacao_do_acesso_2025_12": "cnes_reg_acesso_2025_12",
+    "cnes_estab_central_de_notificacao_captacao_e_distrib_de_orgaos_estadual_2025_12": "cnes_notif_capt_distrib_orgaos_2025_12",
+    "cnes_estab_polo_de_prevencao_de_doencas_e_agravos_e_promocao_da_saude_2025_12": "cnes_prev_agravos_prom_saude_2025_12",
+    "cnes_estab_central_de_abastecimento_2025_12": "cnes_abastecimento_2025_12",
+    "cnes_estab_centro_de_imunizacao_2025_12": "cnes_imunizacao_2025_12",
+    "cnes_estab_total_2025_12": "cnes_total_2025_12",
+}
+
+CNES_ESTAB_RENOMEAR_V20 = {
+    "cnes_posto_saude_2025_12": "posto_saude_2025_12",
+    "cnes_centro_saude_ubs_2025_12": "centro_saude_ubs_2025_12",
+    "cnes_policlinica_2025_12": "policlinica_2025_12",
+    "cnes_hosp_geral_2025_12": "hospital_geral_2025_12",
+    "cnes_hosp_esp_2025_12": "hospital_esp_2025_12",
+    "cnes_unid_mista_2025_12": "unidade_mista_2025_12",
+    "cnes_ps_geral_2025_12": "pronto_socorro_geral_2025_12",
+    "cnes_ps_esp_2025_12": "pronto_socorro_esp_2025_12",
+    "cnes_cons_isol_2025_12": "consultorio_isolado_2025_12",
+    "cnes_unid_mov_fluv_2025_12": "unidade_movel_fluvial_2025_12",
+    "cnes_clin_centro_esp_2025_12": "clinica_centro_esp_2025_12",
+    "cnes_sadt_isol_2025_12": "sadt_isolado_2025_12",
+    "cnes_unid_mov_terr_2025_12": "unidade_movel_terrestre_2025_12",
+    "cnes_unid_mov_pre_hosp_urg_2025_12": "unidade_movel_pre_hosp_urg_2025_12",
+    "cnes_farmacia_2025_12": "farmacia_2025_12",
+    "cnes_vig_saude_2025_12": "vigilancia_saude_2025_12",
+    "cnes_coop_cessao_saude_2025_12": "coop_cessao_saude_2025_12",
+    "cnes_cpn_isol_2025_12": "centro_parto_normal_isol_2025_12",
+    "cnes_hosp_dia_isol_2025_12": "hospital_dia_isol_2025_12",
+    "cnes_lacen_2025_12": "lacen_2025_12",
+    "cnes_gestao_saude_2025_12": "central_gestao_saude_2025_12",
+    "cnes_hemoterapia_hematol_2025_12": "hemoterapia_hematologia_2025_12",
+    "cnes_caps_2025_12": "caps_2025_12",
+    "cnes_apoio_saude_fam_2025_12": "apoio_saude_familia_2025_12",
+    "cnes_saude_indigena_2025_12": "saude_indigena_2025_12",
+    "cnes_pronto_atend_2025_12": "pronto_atendimento_2025_12",
+    "cnes_polo_acad_saude_2025_12": "polo_academia_saude_2025_12",
+    "cnes_telessaude_2025_12": "telessaude_2025_12",
+    "cnes_reg_med_urg_2025_12": "regulacao_medica_urg_2025_12",
+    "cnes_atend_dom_homecare_2025_12": "atencao_domiciliar_homecare_2025_12",
+    "cnes_atend_reg_resid_2025_12": "atencao_regime_residencial_2025_12",
+    "cnes_ofic_ortopedica_2025_12": "oficina_ortopedica_2025_12",
+    "cnes_lab_saude_pub_2025_12": "laboratorio_saude_pub_2025_12",
+    "cnes_reg_acesso_2025_12": "regulacao_acesso_2025_12",
+    "cnes_notif_capt_distrib_orgaos_2025_12": "notif_capt_distrib_orgaos_2025_12",
+    "cnes_prev_agravos_prom_saude_2025_12": "prev_agravos_prom_saude_2025_12",
+    "cnes_abastecimento_2025_12": "central_abastecimento_2025_12",
+    "cnes_imunizacao_2025_12": "centro_imunizacao_2025_12",
+    "cnes_total_2025_12": "estab_total_2025_12",
+}
+
+CNES_ESTAB_RENOMEAR_V21 = {
+    "posto_saude_2025_12": "posto_saude",
+    "centro_saude_ubs_2025_12": "centro_saude_ubs",
+    "policlinica_2025_12": "policlinica",
+    "hospital_geral_2025_12": "hospital_geral",
+    "hospital_esp_2025_12": "hospital_esp",
+    "unidade_mista_2025_12": "unidade_mista",
+    "pronto_socorro_geral_2025_12": "pronto_socorro_geral",
+    "pronto_socorro_esp_2025_12": "pronto_socorro_esp",
+    "consultorio_isolado_2025_12": "consultorio_isolado",
+    "unidade_movel_fluvial_2025_12": "unidade_movel_fluvial",
+    "clinica_centro_esp_2025_12": "clinica_centro_esp",
+    "sadt_isolado_2025_12": "sadt_isolado",
+    "unidade_movel_terrestre_2025_12": "unidade_movel_terrestre",
+    "unidade_movel_pre_hosp_urg_2025_12": "unidade_movel_pre_hosp_urg",
+    "farmacia_2025_12": "farmacia",
+    "vigilancia_saude_2025_12": "vigilancia_saude",
+    "coop_cessao_saude_2025_12": "coop_cessao_saude",
+    "centro_parto_normal_isol_2025_12": "centro_parto_normal_isol",
+    "hospital_dia_isol_2025_12": "hospital_dia_isol",
+    "lacen_2025_12": "lacen",
+    "central_gestao_saude_2025_12": "central_gestao_saude",
+    "hemoterapia_hematologia_2025_12": "hemoterapia_hematologia",
+    "caps_2025_12": "caps",
+    "apoio_saude_familia_2025_12": "apoio_saude_familia",
+    "saude_indigena_2025_12": "saude_indigena",
+    "pronto_atendimento_2025_12": "pronto_atendimento",
+    "polo_academia_saude_2025_12": "polo_academia_saude",
+    "telessaude_2025_12": "telessaude",
+    "regulacao_medica_urg_2025_12": "regulacao_medica_urg",
+    "atencao_domiciliar_homecare_2025_12": "atencao_domiciliar_homecare",
+    "atencao_regime_residencial_2025_12": "atencao_regime_residencial",
+    "oficina_ortopedica_2025_12": "oficina_ortopedica",
+    "laboratorio_saude_pub_2025_12": "laboratorio_saude_pub",
+    "regulacao_acesso_2025_12": "regulacao_acesso",
+    "notif_capt_distrib_orgaos_2025_12": "notif_capt_distrib_orgaos",
+    "prev_agravos_prom_saude_2025_12": "prev_agravos_prom_saude",
+    "central_abastecimento_2025_12": "central_abastecimento",
+    "centro_imunizacao_2025_12": "centro_imunizacao",
+    "estab_total_2025_12": "estab_total",
 }
 
 METADADOS = [
@@ -486,6 +629,94 @@ METADADOS = [
         "fonte_original": "bronze/tabela8418.csv",
         "observacoes": "Obtida da Tabela 8418 do IBGE e renomeada para formato curto na base final.",
     },
+    {
+        "variavel_v14": "demissoes_2025",
+        "variavel_original": "Empregados - demissões - Novo Caged sem ajuste",
+        "descricao_original": "Total anual de demissoes de empregados no municipio, obtido pela soma dos 12 meses do ano.",
+        "ano_referencia": "2025",
+        "fonte_original": "prata/pre_merge/ipea_demissoes_municipais_2025.csv",
+        "observacoes": "Derivada do arquivo mensal do Ipea por agregacao dos meses de 2025 em um unico valor anual por municipio.",
+    },
+    {
+        "variavel_v14": "ambulatorios_sus_2026_02",
+        "variavel_original": "SUS",
+        "descricao_original": "Numero de estabelecimentos com tipo de atendimento prestado ambulatorio no SUS, por municipio.",
+        "ano_referencia": "2026-02",
+        "fonte_original": "bronze/cnes_cnv_atambbr131932200_135_70_71.csv",
+        "observacoes": "Derivada do arquivo do CNES por municipio. O merge com a base principal usa o codigo municipal reduzido de 6 digitos do CNES.",
+    },
+    {
+        "variavel_v14": "demanda_agua_hum_urb_m3s",
+        "variavel_original": "VZHURM3S",
+        "descricao_original": "Demanda de agua para uso humano urbano no municipio, em metros cubicos por segundo.",
+        "ano_referencia": "2020",
+        "fonte_original": "bronze/Demanda_Total.csv",
+        "observacoes": "Derivada da base da ANA de demanda total por municipio. O merge e feito pelo codigo IBGE municipal.",
+    },
+    {
+        "variavel_v14": "demanda_agua_hum_rur_m3s",
+        "variavel_original": "VZHRUM3S",
+        "descricao_original": "Demanda de agua para uso humano rural no municipio, em metros cubicos por segundo.",
+        "ano_referencia": "2020",
+        "fonte_original": "bronze/Demanda_Total.csv",
+        "observacoes": "Derivada da base da ANA de demanda total por municipio. O merge e feito pelo codigo IBGE municipal.",
+    },
+    {
+        "variavel_v14": "demanda_agua_ind_m3s",
+        "variavel_original": "VZINDM3S",
+        "descricao_original": "Demanda de agua para uso industrial no municipio, em metros cubicos por segundo.",
+        "ano_referencia": "2020",
+        "fonte_original": "bronze/Demanda_Total.csv",
+        "observacoes": "Derivada da base da ANA de demanda total por municipio. O merge e feito pelo codigo IBGE municipal.",
+    },
+    {
+        "variavel_v14": "demanda_agua_min_m3s",
+        "variavel_original": "VZMINM3S",
+        "descricao_original": "Demanda de agua para mineracao no municipio, em metros cubicos por segundo.",
+        "ano_referencia": "2020",
+        "fonte_original": "bronze/Demanda_Total.csv",
+        "observacoes": "Derivada da base da ANA de demanda total por municipio. O merge e feito pelo codigo IBGE municipal.",
+    },
+    {
+        "variavel_v14": "demanda_agua_term_m3s",
+        "variavel_original": "VZTERM3S",
+        "descricao_original": "Demanda de agua para uso termeletrico no municipio, em metros cubicos por segundo.",
+        "ano_referencia": "2020",
+        "fonte_original": "bronze/Demanda_Total.csv",
+        "observacoes": "Derivada da base da ANA de demanda total por municipio. O merge e feito pelo codigo IBGE municipal.",
+    },
+    {
+        "variavel_v14": "demanda_agua_animal_m3s",
+        "variavel_original": "VZANIM3S",
+        "descricao_original": "Demanda de agua para dessedentacao animal no municipio, em metros cubicos por segundo.",
+        "ano_referencia": "2020",
+        "fonte_original": "bronze/Demanda_Total.csv",
+        "observacoes": "Derivada da base da ANA de demanda total por municipio. O merge e feito pelo codigo IBGE municipal.",
+    },
+    {
+        "variavel_v14": "demanda_agua_irr_m3s",
+        "variavel_original": "VZIRRM3S",
+        "descricao_original": "Demanda de agua para irrigacao no municipio, em metros cubicos por segundo.",
+        "ano_referencia": "2020",
+        "fonte_original": "bronze/Demanda_Total.csv",
+        "observacoes": "Derivada da base da ANA de demanda total por municipio. O merge e feito pelo codigo IBGE municipal.",
+    },
+    {
+        "variavel_v14": "demanda_agua_total_m3s",
+        "variavel_original": "VZTOTM3S",
+        "descricao_original": "Demanda total de agua no municipio, em metros cubicos por segundo.",
+        "ano_referencia": "2020",
+        "fonte_original": "bronze/Demanda_Total.csv",
+        "observacoes": "Derivada da base da ANA de demanda total por municipio. O merge e feito pelo codigo IBGE municipal.",
+    },
+    {
+        "variavel_v14": "registros_seca_2003_2015",
+        "variavel_original": "SECAS2003A",
+        "descricao_original": "Numero de registros de secas por municipio no periodo de 2003 a 2015.",
+        "ano_referencia": "2003-2015",
+        "fonte_original": "bronze/N%C3%BAmero_de_Registros_de_Secas_por_Munic%C3%ADpio_entre_2003_e_2015.csv",
+        "observacoes": "Derivada da base da ANA de registros de secas por municipio. O merge e feito pelo codigo IBGE municipal.",
+    },
 ]
 
 
@@ -498,6 +729,88 @@ def normalizar_ano_referencia(valor: object) -> str:
 
 def padronizar_fonte(valor: str) -> str:
     return FONTE_PADRAO.get(valor, valor)
+
+
+def slugify(texto: str) -> str:
+    texto = unicodedata.normalize("NFKD", str(texto))
+    texto = "".join(ch for ch in texto if not unicodedata.combining(ch))
+    texto = texto.lower().replace("/", " ")
+    texto = re.sub(r"[^a-z0-9]+", "_", texto)
+    return re.sub(r"_+", "_", texto).strip("_")
+
+
+def extrair_periodo_cnes_estabelecimentos() -> str | None:
+    arquivo = BASE_DIR / "bronze" / "cnes_cnv_estabbr134413200_135_70_71.csv"
+    if not arquivo.exists():
+        return None
+
+    with arquivo.open("r", encoding="latin1", errors="replace") as f:
+        linhas = [f.readline().strip() for _ in range(3)]
+
+    match = re.search(r"Per[ií]odo:([A-Za-z]{3})/(\d{4})", linhas[2], flags=re.IGNORECASE)
+    if not match:
+        return None
+
+    mes_txt = match.group(1).lower()
+    ano = match.group(2)
+    mapa_meses = {
+        "jan": "01",
+        "fev": "02",
+        "mar": "03",
+        "abr": "04",
+        "mai": "05",
+        "jun": "06",
+        "jul": "07",
+        "ago": "08",
+        "set": "09",
+        "out": "10",
+        "nov": "11",
+        "dez": "12",
+    }
+    if mes_txt not in mapa_meses:
+        return None
+
+    return f"{ano}_{mapa_meses[mes_txt]}"
+
+
+def nome_coluna_cnes_estabelecimentos(coluna_original: str, periodo: str) -> str:
+    return f"cnes_estab_{slugify(coluna_original)}_{periodo}"
+
+
+def gerar_metadados_cnes_estabelecimentos(colunas_base: list[str]) -> list[dict[str, str]]:
+    arquivo = BASE_DIR / "bronze" / "cnes_cnv_estabbr134413200_135_70_71.csv"
+    if not arquivo.exists():
+        return []
+
+    periodo = extrair_periodo_cnes_estabelecimentos()
+    if periodo is None:
+        return []
+
+    df = pd.read_csv(arquivo, encoding="latin1", sep=";", skiprows=3, nrows=0)
+    colunas_origem = [col for col in df.columns if col != "Município"]
+    ano_ref = periodo.replace("_", "-")
+
+    metadados: list[dict[str, str]] = []
+    for coluna in colunas_origem:
+        variavel_longa = nome_coluna_cnes_estabelecimentos(coluna, periodo)
+        variavel = CNES_ESTAB_RENOMEAR.get(variavel_longa, variavel_longa)
+        variavel = CNES_ESTAB_RENOMEAR_V20.get(variavel, variavel)
+        variavel = CNES_ESTAB_RENOMEAR_V21.get(variavel, variavel)
+        if variavel not in colunas_base and variavel_longa not in colunas_base:
+            continue
+
+        metadados.append(
+            {
+                "variavel_v14": variavel,
+                "variavel_original": coluna,
+                "descricao_original": f"Numero de estabelecimentos do tipo {coluna.lower()} por municipio no CNES.",
+                "ano_referencia": ano_ref,
+                "fonte_original": "bronze/cnes_cnv_estabbr134413200_135_70_71.csv",
+                "observacoes": "Derivada do arquivo do CNES por municipio. Os valores '-' sao convertidos para 0 e Brasilia e zerada em todas as colunas do bloco.",
+            }
+        )
+
+    return metadados
 
 
 def descobrir_ultima_base() -> tuple[Path, str]:
@@ -523,7 +836,8 @@ def main() -> int:
 
     df = pd.read_csv(input_file)
     colunas_base = df.columns.tolist()
-    colunas_metadados = [item["variavel_v14"] for item in METADADOS]
+    metadados = METADADOS + gerar_metadados_cnes_estabelecimentos(colunas_base)
+    colunas_metadados = [item["variavel_v14"] for item in metadados]
 
     faltantes = [col for col in colunas_base if col not in colunas_metadados]
     extras = [col for col in colunas_metadados if col not in colunas_base]
@@ -533,10 +847,17 @@ def main() -> int:
             f"Faltantes no dicionario: {faltantes}. Extras no dicionario: {extras}."
         )
 
-    dicionario = pd.DataFrame(METADADOS)
+    dicionario = pd.DataFrame(metadados)
     dicionario["ordem_v14"] = dicionario["variavel_v14"].map({col: i + 1 for i, col in enumerate(colunas_base)})
     dicionario = dicionario.sort_values("ordem_v14").reset_index(drop=True)
     dicionario["tipo"] = dicionario["variavel_v14"].map(TIPO_POR_VARIAVEL)
+    dicionario.loc[dicionario["variavel_v14"].str.startswith("cnes_estab_"), "tipo"] = "contagem"
+    dicionario.loc[dicionario["variavel_v14"].str.startswith("cnes_"), "tipo"] = "contagem"
+    dicionario.loc[
+        ~dicionario["variavel_v14"].astype(str).str.startswith("cnes_")
+        & dicionario["fonte_original"].eq("bronze/cnes_cnv_estabbr134413200_135_70_71.csv"),
+        "tipo",
+    ] = "contagem"
     if dicionario["tipo"].isna().any():
         faltantes_tipo = dicionario.loc[dicionario["tipo"].isna(), "variavel_v14"].tolist()
         raise ValueError(f"Tipo ausente para as variaveis: {faltantes_tipo}")
