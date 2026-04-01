@@ -1015,6 +1015,180 @@ Execucao:
 python3 scripts/merge_ana_agua_seca_v21.py
 ```
 
+## Etapa 27: Merge Dos Indicadores Normalizados Do IBC Com A V22
+
+Script: `scripts/merge_ibc_normalizado_v22.py`
+
+Objetivo:
+
+- ler `../prata/processamento/merge_v22.csv`;
+- ler `../bronze/IBC_municipios_indicadores_normalizados.csv`;
+- gerar uma versao pre-tratada em `../prata/pre_merge/`;
+- fazer merge via codigo do municipio;
+- incorporar os indicadores normalizados mais recentes do IBC;
+- gerar `../prata/processamento/merge_v23.csv`.
+
+Como o merge e feito:
+
+- a `v22` usa `cod_mun` como chave;
+- a base do IBC entra por `Código Município`;
+- o arquivo e lido com separador `;`;
+- quando ha mais de um ano no arquivo, o merge usa o ano mais recente disponivel;
+- os codigos municipais sao normalizados antes do merge;
+- a coluna `Cobertura área agricultável` e convertida de texto com virgula decimal para numero;
+- uma copia pre-tratada do ano selecionado e salva em `../prata/pre_merge/`;
+- apenas as colunas de indicadores normalizados sao incorporadas ao resultado.
+
+Colunas incorporadas:
+
+- `ibc_indice_2024`
+- `ibc_cobertura_pop_4g5g_2024`
+- `ibc_densidade_smp_2024`
+- `ibc_hhi_smp_2024`
+- `ibc_densidade_scm_2024`
+- `ibc_hhi_scm_2024`
+- `ibc_adensamento_estacoes_2024`
+- `ibc_fibra_2024`
+- `ibc_cobertura_area_agricultavel_2024`
+
+Resultado registrado:
+
+- a `merge_v23.csv` foi gerada com 5570 linhas;
+- o arquivo auxiliar `../prata/pre_merge/ibc_municipios_indicadores_normalizados_2024.csv` foi gerado para inspecao;
+- houve correspondencia para todos os municipios na base do IBC;
+- o ano utilizado no arquivo do IBC foi `2024`.
+
+Execucao:
+
+```bash
+python3 scripts/merge_ibc_normalizado_v22.py
+```
+
+## Etapa 28: Remocao Do Prefixo E Do Ano Nas Colunas Do IBC Na V23
+
+Script: `scripts/remove_prefixo_periodo_ibc_v23.py`
+
+Objetivo:
+
+- ler `../prata/processamento/merge_v23.csv`;
+- renomear as colunas do bloco do IBC;
+- remover o prefixo da fonte e o sufixo do ano dos nomes das colunas;
+- gerar `../prata/processamento/merge_v24.csv`.
+
+Como a normalizacao e feita:
+
+- apenas as 9 colunas do bloco do IBC sao renomeadas;
+- o prefixo `ibc_` e removido;
+- o sufixo `_2024` e removido;
+- a estrutura e os valores da base permanecem inalterados.
+
+Colunas renomeadas:
+
+- `ibc_indice_2024` para `indice`
+- `ibc_cobertura_pop_4g5g_2024` para `cobertura_pop_4g5g`
+- `ibc_densidade_smp_2024` para `densidade_smp`
+- `ibc_hhi_smp_2024` para `hhi_smp`
+- `ibc_densidade_scm_2024` para `densidade_scm`
+- `ibc_hhi_scm_2024` para `hhi_scm`
+- `ibc_adensamento_estacoes_2024` para `adensamento_estacoes`
+- `ibc_fibra_2024` para `fibra`
+- `ibc_cobertura_area_agricultavel_2024` para `cobertura_area_agricultavel`
+
+Resultado registrado:
+
+- a `merge_v24.csv` foi gerada com 5570 linhas;
+- 9 colunas do bloco IBC tiveram os nomes simplificados.
+
+Execucao:
+
+```bash
+python3 scripts/remove_prefixo_periodo_ibc_v23.py
+```
+
+## Etapa 29: Merge Da Tabela 10330 Com A V24
+
+Script: `scripts/merge_tabela10330_v24.py`
+
+Objetivo:
+
+- ler `../prata/processamento/merge_v24.csv`;
+- ler `../bronze/tabela10330.csv`;
+- fazer merge via codigo do municipio;
+- incorporar as contagens de pessoas por tempo habitual de deslocamento para o trabalho principal;
+- gerar `../prata/processamento/merge_v25.csv`.
+
+Como o merge e feito:
+
+- a `v24` usa `cod_mun` como chave;
+- a tabela 10330 entra por `Cód.`;
+- o arquivo e lido com `skiprows=5` por causa do cabecalho em varias linhas;
+- apenas o recorte `Total` em `Cor ou raça` e `Total` em `Local de exercício do trabalho principal` e mantido;
+- os valores `-` sao convertidos para `0` antes da conversao numerica;
+- apenas as colunas de faixas de tempo de deslocamento sao incorporadas ao resultado.
+
+Colunas incorporadas:
+
+- `desloc_trab_ate_5min_2022`
+- `desloc_trab_6a15min_2022`
+- `desloc_trab_15a30min_2022`
+- `desloc_trab_30a60min_2022`
+- `desloc_trab_1a2h_2022`
+- `desloc_trab_2a4h_2022`
+- `desloc_trab_mais_4h_2022`
+
+Resultado registrado:
+
+- a `merge_v25.csv` foi gerada com 5570 linhas;
+- houve correspondencia para todos os municipios na tabela 10330.
+
+Execucao:
+
+```bash
+python3 scripts/merge_tabela10330_v24.py
+```
+
+## Etapa 30: Merge Da Tabela 10332 Com A V25
+
+Script: `scripts/merge_tabela10332_v25.py`
+
+Objetivo:
+
+- ler `../prata/processamento/merge_v25.csv`;
+- ler `../bronze/tabela10332.csv`;
+- fazer merge via codigo do municipio;
+- incorporar as contagens de pessoas por meio de transporte predominante para chegar ao trabalho principal;
+- gerar `../prata/processamento/merge_v26.csv`.
+
+Como o merge e feito:
+
+- a `v25` usa `cod_mun` como chave;
+- a tabela 10332 entra por `Cód.`;
+- o arquivo e lido com `skiprows=5` por causa do cabecalho em varias linhas;
+- apenas o recorte `Total` em `Cor ou raça` e mantido;
+- os valores `-` sao convertidos para `0` antes da conversao numerica;
+- apenas as colunas de meio de transporte sao incorporadas ao resultado.
+
+Colunas incorporadas:
+
+- `transp_trab_pe`
+- `transp_trab_bicicleta`
+- `transp_trab_motocicleta`
+- `transp_trab_automovel`
+- `transp_trab_onibus`
+- `transp_trab_trem_metro`
+- `transp_trab_outros`
+
+Resultado registrado:
+
+- a `merge_v26.csv` foi gerada com 5570 linhas;
+- houve correspondencia para todos os municipios na tabela 10332.
+
+Execucao:
+
+```bash
+python3 scripts/merge_tabela10332_v25.py
+```
+
 ## Regra Permanente Para Novas CSVs E Novas Versoes
 
 Sempre que uma nova CSV for incorporada ao pipeline, a atualizacao nao termina no merge da nova base. A manutencao deve incluir tambem a documentacao da etapa e a atualizacao do dicionario de dados.
@@ -1094,8 +1268,13 @@ Ao final das etapas atuais, os principais arquivos processados sao:
 - `../prata/processamento/merge_v20.csv`
 - `../prata/processamento/merge_v21.csv`
 - `../prata/processamento/merge_v22.csv`
+- `../prata/processamento/merge_v23.csv`
+- `../prata/processamento/merge_v24.csv`
+- `../prata/processamento/merge_v25.csv`
+- `../prata/processamento/merge_v26.csv`
 - `dicionario_dados.csv`
 - `../prata/pre_merge/homicidios_municipais_2022.csv`
+- `../prata/pre_merge/ibc_municipios_indicadores_normalizados_AAAA.csv`
 - `../prata/pre_merge/ipea_demissoes_municipais_AAAA.csv`
 - `../prata/pre_merge/indicadores_seguranca_publica_municipal/*.csv`
 - `../prata/pre_merge/regic_2018/*.csv`
@@ -1152,3 +1331,7 @@ Quando o novo script alterar a versao final da base, acrescente tambem:
 - `scripts/normaliza_nomes_cnes_estabelecimentos_v19.py`
 - `scripts/remove_periodo_nomes_cnes_v20.py`
 - `scripts/merge_ana_agua_seca_v21.py`
+- `scripts/merge_ibc_normalizado_v22.py`
+- `scripts/remove_prefixo_periodo_ibc_v23.py`
+- `scripts/merge_tabela10330_v24.py`
+- `scripts/merge_tabela10332_v25.py`
