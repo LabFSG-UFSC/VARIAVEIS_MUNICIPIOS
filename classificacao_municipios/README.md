@@ -19,6 +19,316 @@ Os arquivos estao organizados principalmente como conjuntos de shapefile. Para u
 
 Esta pasta funciona como acervo espacial separado e tambem como area de trabalho para classificacao dos municipios. Ela complementa `regioes_geograficas/`, que concentra scripts de agregacao e produtos finais do projeto em GeoPackage.
 
+## Representacao CNEFE Em Capitais
+
+O script [`scripts/gera_csv_representacao_cnefe_capitais.py`](scripts/gera_csv_representacao_cnefe_capitais.py) gera um CSV sintese com a participacao dos domicilios da `CNEFE` em tres conjuntos hierarquicos de cidades:
+
+- capitais de UF
+- capitais exclusivas de regioes intermediarias
+- capitais exclusivas de regioes imediatas
+- restante dos municipios do Brasil
+
+### Objetivo
+
+Produzir uma tabela curta com:
+
+- o nome do grupo de capitais
+- a quantidade de unidades efetivamente contadas no grupo
+- o total de domicilios da `CNEFE` presentes nessas cidades
+- o percentual que esse total representa em relacao ao Brasil
+
+### Insumos
+
+- `../prata/cnefe domiclios ofertas-/cnefe_resumo_municipal.csv`: consolidado municipal da `CNEFE`, com `codigo_mun` e `domicilios`
+- `../prata/cnefe domiclios ofertas-/ofertas_merge_cnefe_municipal.csv`: base municipal de ofertas com `CD_MUN` e `total_geral`
+- `RG2017_regioesgeograficas2017_20180911/RG2017_regioesgeograficas2017.shp`: malha municipal com `UF`, `rgi`, `nome_rgi`, `rgint` e `nome_rgint`
+
+### Regras De Identificacao Das Capitais
+
+- `capitais de UF`: o script usa um mapeamento explicito entre codigo `UF` e a capital estadual correspondente, depois faz o pareamento pelo nome municipal normalizado
+- `capitais de regioes intermediarias`: para cada `rgint`, o script usa o primeiro nome presente em `nome_rgint` como referencia da capital; se nao houver match exato, escolhe o municipio com maior similaridade textual
+- `capitais de regioes imediatas`: aplica a mesma regra anterior usando `nome_rgi`
+
+### Regra De Exclusao Entre Grupos
+
+Os grupos finais sao mutuamente exclusivos e seguem esta ordem:
+
+1. primeiro entram todas as `capitais de UF`
+2. depois entram apenas as `capitais de regioes intermediarias` que ainda nao estavam no grupo de `UF`
+3. por fim entram apenas as `capitais de regioes imediatas` que ainda nao estavam nos dois grupos anteriores
+4. o `restante dos municipios do Brasil` e formado por todos os municipios que sobraram apos as tres etapas anteriores
+
+Assim, o CSV evita dupla contagem e cobre todo o conjunto dos `5570` municipios.
+
+Essa normalizacao remove acentos, padroniza hifens e comprime espacos, para reduzir problemas de grafia entre o nome do municipio e o nome da regiao.
+
+### Saida
+
+- `processamento/cnefe_representacao_capitais.csv`
+- `processamento/cnefe_representacao_capitais.gpkg`
+
+O CSV final possui as colunas:
+
+- `categoria`
+- `quantidade_unidades`
+- `total_geral`
+- `domicilios_cnefe`
+- `percentual_domicilios_cnefe_br`
+- `percentual_acumulado`
+
+O percentual e gravado como valor numerico ja convertido para porcentagem e arredondado para `2` casas decimais.
+O `percentual_acumulado` segue a ordem das linhas do CSV.
+
+O GeoPackage e gerado com tres camadas:
+
+- `municipios_categorizados`: camada municipal completa, com cada municipio classificado em uma das quatro categorias da tabela
+- `capitais_selecionadas`: somente os municipios escolhidos como capitais nos niveis `uf`, `rgint` e `rgi`, com campo `tipo_capital`
+- `categorias_dissolvidas`: geometria dissolvida por categoria, agregando o conjunto espacial de cada grupo
+
+Na camada municipal ficam disponiveis, entre outros, os campos `codigo_mun`, `NOME`, `uf`, `rgi`, `rgint`, `categoria`, `domicilios` e `total_geral`.
+Na camada `capitais_selecionadas`, o campo recomendado para simbologia categorizada e `tipo_capital`.
+
+### Como Executar
+
+```bash
+python3 classificacao_municipios/scripts/gera_csv_representacao_cnefe_capitais.py
+```
+
+## Classificacao ABC Dos Municipios Pelo CNEFE
+
+O script [`scripts/classifica_municipios_abc_cnefe.py`](scripts/classifica_municipios_abc_cnefe.py) gera uma classificacao `A/B/C` dos municipios brasileiros a partir do total de domicilios da `CNEFE`.
+
+### Objetivo
+
+Produzir uma leitura simples de concentracao territorial dos enderecos do `CNEFE`, ordenando os municipios pelo maior volume de domicilios e classificando-os por participacao acumulada no total nacional.
+
+### Regra De Classificacao
+
+No estado atual, o script usa cortes cumulativos padrao:
+
+- classe `A`: municipios ate `80%` dos domicilios acumulados
+- classe `B`: municipios entre `80%` e `95%`
+- classe `C`: municipios acima de `95%`
+
+Os limites podem ser alterados pela linha de comando com `--limite-a` e `--limite-b`.
+
+### Insumos
+
+- `../prata/cnefe domiclios ofertas-/cnefe_resumo_municipal.csv`: consolidado municipal da `CNEFE`, com `codigo_mun` e `domicilios`
+- `RG2017_regioesgeograficas2017_20180911/RG2017_regioesgeograficas2017.shp`: malha municipal com `UF`, `rgi`, `nome_rgi`, `rgint` e `nome_rgint`
+
+### Saidas
+
+- `processamento/classificacao_abc_cnefe_municipios.csv`
+- `processamento/classificacao_abc_cnefe_resumo.csv`
+- `processamento/grafico_abc_cnefe_municipios.svg`
+
+O CSV municipal traz, entre outros, os campos:
+
+- `ordem_abc`
+- `classe_abc`
+- `codigo_mun`
+- `NOME`
+- `uf`
+- `rgi`
+- `nome_rgi`
+- `rgint`
+- `nome_rgint`
+- `domicilios`
+- `participacao_pct`
+- `participacao_acumulada_pct`
+- `domicilios_acumulados`
+- `domicilios_por_1k_hab`
+
+O CSV resumo agrega por classe:
+
+- quantidade de municipios
+- total de domicilios da `CNEFE`
+- percentual no total Brasil
+- percentual acumulado
+- intervalo de ordem ocupado por cada classe
+
+O grafico `SVG` mostra:
+
+- a curva acumulada dos domicilios da `CNEFE`
+- a linha de igualdade `45 graus`
+- as marcacoes dos cortes entre as classes `A`, `B` e `C`
+
+### Como Executar
+
+```bash
+python3 classificacao_municipios/scripts/classifica_municipios_abc_cnefe.py
+```
+
+## Regressao Ponderada Na Classe A
+
+O script [`scripts/regressao_ponderada_classe_a.py`](scripts/regressao_ponderada_classe_a.py) roda uma regressao linear ponderada apenas nos municipios da classe `A` da classificacao ABC da `CNEFE`.
+
+### Objetivo
+
+Modelar o volume de domicilios da `CNEFE` nos municipios mais concentradores, dando mais influencia aos municipios maiores por meio de pesos.
+
+### Regra Atual Do Modelo
+
+- universo analisado: apenas municipios da classe `A`
+- variavel resposta: `log_domicilios`
+- preditores padrao:
+  - `log_pop_total`
+  - `log_empresas_total`
+  - `log_estab_total`
+  - `indice_conectividade`
+  - `log_area_urb_densa_km2`
+- pesos disponiveis: `domicilios`, `pop_total`, `total_geral` ou `uniforme`
+
+### Insumos
+
+- `processamento/classificacao_abc_cnefe_municipios.csv`
+- `../prata/processamento/merge_v26.csv`
+- `../prata/cnefe domiclios ofertas-/ofertas_merge_cnefe_municipal.csv`
+
+### Saidas
+
+- `processamento/regressao_ponderada_classe_a_base.csv`
+- `processamento/regressao_ponderada_classe_a_coeficientes.csv`
+- `processamento/regressao_ponderada_classe_a_resumo.txt`
+
+### Como Executar
+
+```bash
+python3 classificacao_municipios/scripts/regressao_ponderada_classe_a.py
+```
+
+## Clusterizacao Da Classe A
+
+O script [`scripts/clusteriza_classe_a.py`](scripts/clusteriza_classe_a.py) agrupa os municipios da classe `A` em conjuntos de perfil semelhante.
+
+### Objetivo
+
+Criar uma tipologia interna da classe `A`, permitindo identificar municipios muito parecidos entre si dentro do grupo que concentra a maior parte dos domicilios da `CNEFE`.
+
+### Regra Atual Do Modelo
+
+- universo analisado: apenas municipios da classe `A`
+- metodo: `k-means`
+- numero padrao de grupos: `4`
+- variaveis padrao:
+  - `log_domicilios`
+  - `log_pop_total`
+  - `log_empresas_total`
+  - `log_estab_total`
+  - `log_area_urb_densa_km2`
+  - `indice_conectividade`
+  - `log_total_geral`
+  - `domicilios_por_1k_hab`
+
+### Insumos
+
+- `processamento/classificacao_abc_cnefe_municipios.csv`
+- `../prata/processamento/merge_v26.csv`
+- `../prata/cnefe domiclios ofertas-/ofertas_merge_cnefe_municipal.csv`
+- `RG2017_regioesgeograficas2017_20180911/RG2017_regioesgeograficas2017.shp`
+
+### Saidas
+
+- `processamento/clusters_classe_a_municipios.csv`
+- `processamento/clusters_classe_a_resumo.csv`
+- `processamento/clusters_classe_a_centroides.csv`
+- `processamento/clusters_classe_a_municipios.gpkg`
+
+### Como Executar
+
+```bash
+python3 classificacao_municipios/scripts/clusteriza_classe_a.py
+```
+
+## Clusterizacao Refinada Da Classe A
+
+O script [`scripts/clusteriza_classe_a_refinada.py`](scripts/clusteriza_classe_a_refinada.py) refina a tipologia da classe `A` em duas etapas:
+
+1. separa primeiro as `capitais de UF`
+2. clusteriza o restante da classe `A` com um conjunto reduzido de variaveis
+
+### Objetivo
+
+Reduzir a heterogeneidade interna da classe `A`, evitando que capitais muito grandes dominem a formacao dos grupos e diminuindo a redundancia entre variaveis de tamanho.
+
+### Variaveis Reduzidas
+
+- `log_pop_total`
+- `log_area_urb_densa_km2`
+- `indice_conectividade`
+- `log_total_geral`
+- `domicilios_por_1k_hab`
+- `regic_var61`
+
+### Saidas
+
+- `processamento/clusters_classe_a_refinada_municipios.csv`
+- `processamento/clusters_classe_a_refinada_resumo.csv`
+- `processamento/clusters_classe_a_refinada_centroides.csv`
+- `processamento/clusters_classe_a_refinada_municipios.gpkg`
+
+### Como Executar
+
+```bash
+python3 classificacao_municipios/scripts/clusteriza_classe_a_refinada.py
+```
+
+## Setores Urbanos Na Similaridade
+
+O script [`scripts/agrega_setores_urbanos_por_municipio.py`](scripts/agrega_setores_urbanos_por_municipio.py) agrega metricas da malha de setores censitarios urbanos por municipio.
+
+Essas metricas entram depois na clusterizacao feita por [`scripts/clusteriza_classe_a_com_setores.py`](scripts/clusteriza_classe_a_com_setores.py), que recalcula a similaridade dos municipios da classe `A` incorporando estrutura intraurbana.
+
+### Saidas
+
+- `processamento/setores_urbanos_metricas_municipio.csv`
+- `processamento/clusters_classe_a_setores_municipios.csv`
+- `processamento/clusters_classe_a_setores_resumo.csv`
+- `processamento/clusters_classe_a_setores_centroides.csv`
+- `processamento/clusters_classe_a_setores_municipios.gpkg`
+
+### Como Executar
+
+```bash
+python3 classificacao_municipios/scripts/agrega_setores_urbanos_por_municipio.py
+python3 classificacao_municipios/scripts/clusteriza_classe_a_com_setores.py
+```
+
+## Similaridade Com Foco Em CNEFE, Populacao, Setores E Ofertas
+
+O script [`scripts/clusteriza_classe_a_foco_cnefe_pop_setores_ofertas.py`](scripts/clusteriza_classe_a_foco_cnefe_pop_setores_ofertas.py) recalcula a similaridade da classe `A` priorizando:
+
+- `domicilios` da `CNEFE`
+- `pop_total`
+- caracteristicas dos setores urbanos
+- `total_geral` de ofertas
+
+### Variaveis Usadas
+
+- `log_domicilios`
+- `log_pop_total`
+- `domicilios_por_1k_hab`
+- `log_total_geral`
+- `log_qtd_setores_urbanos`
+- `log_area_urb_setores_km2`
+- `cv_area_setor_urbano`
+- `pct_setores_cd_sit_1`
+- `densidade_setores_urbanos_km2`
+
+### Saidas
+
+- `processamento/clusters_classe_a_foco_cnefe_pop_setores_ofertas_municipios.csv`
+- `processamento/clusters_classe_a_foco_cnefe_pop_setores_ofertas_resumo.csv`
+- `processamento/clusters_classe_a_foco_cnefe_pop_setores_ofertas_centroides.csv`
+- `processamento/clusters_classe_a_foco_cnefe_pop_setores_ofertas_municipios.gpkg`
+
+### Como Executar
+
+```bash
+python3 classificacao_municipios/scripts/clusteriza_classe_a_foco_cnefe_pop_setores_ofertas.py
+```
+
 ## Classificacao Fuzzy Inicial
 
 O script [`scripts/classifica_municipios_fuzzy_rgint.py`](scripts/classifica_municipios_fuzzy_rgint.py) implementa uma classificacao fuzzy dos municipios separadamente dentro de cada regiao intermediaria.
